@@ -1,0 +1,14 @@
+{
+  "floor": {"id": "F1", "name": "Ground floor", "width_m": 40, "height_m": 25},
+  "zones": [
+    {"id": 1, "name": "Server room", "type": "restricted", "polygon": [[30,15],[40,15],[40,25],[30,25]]},
+    {"id": 2, "name": "Lobby", "type": "monitored", "polygon": [[0,0],[14,0],[14,10],[0,10]], "max_occupancy": 60},
+    {"id": 3, "name": "Cash office", "type": "restricted", "polygon": [[0,18],[8,18],[8,25],[0,25]]}
+  ],
+  "cameras": [
+    {"id": "cam01", "name": "Entrance", "x": 2, "y": 2, "floor": "F1"},
+    {"id": "cam02", "name": "East hall", "x": 38, "y": 2, "floor": "F1"},
+    {"id": "cam03", "name": "West corridor", "x": 2, "y": 23, "floor": "F1"},
+    {"id": "cam04", "name": "Server wing", "x": 38, "y": 23, "floor": "F1"}
+  ]
+}

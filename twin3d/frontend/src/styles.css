@@ -1,0 +1,32 @@
+:root {
+  --paper: #e9eff2; --sheet: #f6f8f9; --ink: #13222e; --muted: #5a6b78; --rule: #c3ced6;
+  --teal: #0b7a86; --alert: #d6402b; --ok: #2e8b57; --warn: #c98a12;
+  font-family: "Atkinson Hyperlegible", "Segoe UI", system-ui, sans-serif;
+  color: var(--ink);
+}
+* { box-sizing: border-box; }
+html, body, #root { height: 100%; margin: 0; background: var(--paper); }
+.app { display: grid; grid-template-columns: 1fr 340px; height: 100%; }
+.stage { position: relative; min-width: 0; }
+.panel { background: var(--sheet); border-left: 1px solid var(--rule); padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 22px; }
+.floor { margin: 0; font-size: 20px; font-weight: 700; }
+.conn { margin: 4px 0 0; font-size: 14px; color: var(--muted); }
+.conn.live { color: var(--ok); } .conn.offline { color: var(--alert); }
+.count { display: flex; flex-direction: column; border-top: 2px solid var(--ink); padding-top: 10px; }
+.num { font-size: 64px; line-height: 1; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--teal); }
+.lbl { color: var(--muted); font-size: 14px; }
+h2 { margin: 0 0 8px; font-size: 14px; font-weight: 700; color: var(--muted); }
+.seg { display: flex; border: 1px solid var(--rule); border-radius: 6px; overflow: hidden; }
+.seg button { flex: 1; padding: 8px; border: 0; background: transparent; font: inherit; cursor: pointer; color: var(--ink); }
+.seg button.on { background: var(--ink); color: var(--sheet); }
+.seg button:focus-visible, .seg button:hover:not(.on) { background: var(--paper); outline: 2px solid var(--teal); outline-offset: -2px; }
+ul { list-style: none; margin: 0; padding: 0; }
+.cams li { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--rule); }
+.cams li span { margin-left: auto; color: var(--muted); font-size: 13px; }
+.dot { width: 10px; height: 10px; border-radius: 50%; background: #8a98a3; }
+.dot.online { background: var(--ok); } .dot.offline { background: var(--alert); } .dot.degraded { background: var(--warn); }
+.alerts li { display: flex; flex-direction: column; padding: 8px 10px; margin-bottom: 6px; border-left: 4px solid var(--warn); background: #fff; }
+.alerts li.high { border-color: var(--alert); }
+.alerts li span, .empty { color: var(--muted); font-size: 13px; }
+.empty { margin: 0; }
+@media (max-width: 800px) { .app { grid-template-columns: 1fr; grid-template-rows: 55% 45%; } }

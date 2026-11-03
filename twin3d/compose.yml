@@ -1,0 +1,39 @@
+services:
+  postgres:
+    image: postgres:16
+    env_file: .env
+    volumes: [pgdata:/var/lib/postgresql/data, ./backend/sql/init.sql:/docker-entrypoint-initdb.d/init.sql:ro]
+    healthcheck: {test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER}"], interval: 5s, retries: 10}
+  redis:
+    image: redis:7
+    command: ["redis-server", "--appendonly", "yes"]
+    healthcheck: {test: ["CMD", "redis-cli", "ping"], interval: 5s, retries: 10}
+  api:
+    build: ./backend
+    env_file: .env
+    environment:
+      REDIS_URL: redis://redis:6379/0
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+    ports: ["8000:8000"]
+    depends_on:
+      postgres: {condition: service_healthy}
+      redis: {condition: service_healthy}
+  frontend:
+    build: ./frontend
+    environment: {BACKEND_URL: "http://api:8000"}
+    ports: ["5173:5173"]
+    depends_on: [api]
+  fake-producer:
+    profiles: ["demo"]
+    build: ./backend
+    command: ["python", "tools/fake_producer.py", "--redis", "redis://redis:6379/0", "--people", "200", "--cams", "4"]
+    volumes: ["./tools:/app/tools:ro"]
+    depends_on: [redis]
+  cv:
+    profiles: ["cv"]
+    build: ./cv
+    env_file: .env
+    environment: {REDIS_URL: "redis://redis:6379/0"}
+    volumes: ["./calib:/app/calib:ro"]
+    depends_on: [redis]
+volumes: {pgdata: {}}
