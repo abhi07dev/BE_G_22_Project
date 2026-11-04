@@ -59,6 +59,11 @@ export default function App() {
             ))}
           </ul>
         </section>
+        <section>
+          <h2>Alert Room 1 </h2>
+          <ul className="P_cam_room_1"></ul>
+          {alerts.filter((a) => a.zone === "P_cam_room_1").length}
+        </section>
       </aside>
     </div>
   );
