@@ -5,4 +5,4 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 ENV OPENCV_FFMPEG_CAPTURE_OPTIONS="rtsp_transport;tcp"
-CMD ["python", "-m", "cv_service.worker", "--cam", "cam01", "--url", "${CAM01_URL}", "--calib", "calib/cam01.json"]
+CMD python -m cv_service.worker --cam cam01 --url ${CAM01_URL} --calib calib/cam01.json

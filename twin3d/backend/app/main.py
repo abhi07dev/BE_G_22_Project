@@ -10,7 +10,16 @@ from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 
-import orjson
+try:
+    import orjson
+    def dumps(obj) -> str:
+        return orjson.dumps(obj).decode()
+    loads = orjson.loads
+except ImportError:
+    import json
+    def dumps(obj) -> str:
+        return json.dumps(obj)
+    loads = json.loads
 import redis.asyncio as aioredis
 from fastapi import APIRouter, FastAPI, WebSocket, WebSocketDisconnect
 
@@ -28,10 +37,6 @@ STORE_INTERVAL_S = 0.5  # 2 Hz history per person
 CONFIG = json.loads((Path(__file__).parent / "data" / "floor_f1.json").read_text())
 FLOOR_ID = CONFIG["floor"]["id"]
 engine = AlertEngine([Zone(**z) for z in CONFIG["zones"]])
-
-
-def dumps(obj) -> str:
-    return orjson.dumps(obj).decode()
 
 
 class Hub:
@@ -64,7 +69,7 @@ hub = Hub()
 world: dict[int, list] = {}          # id -> [x, y, arrival_ts, cam]
 last_store: dict[int, float] = {}
 cam_state: dict[str, dict] = {c["id"]: {**c, "state": "unknown", "fps": 0.0, "last_seen": 0.0}
-                              for c in CONFIG["cameras"]}
+                              for c in CONFIG["cameras"] if c["id"] in CAMERAS}
 alert_log: list[dict] = []
 alert_seq = 0
 pos_buffer: list[tuple] = []
@@ -115,14 +120,17 @@ async def ingest_loop(r: aioredis.Redis):
             for stream, msgs in resp or []:
                 for mid, fields in msgs:
                     cursors[stream] = mid
-                    msg = orjson.loads(fields["d"])
+                    msg = loads(fields["d"])
                     if stream == "camstatus":
                         set_cam(msg["cam"], msg.get("state", "online"), msg.get("fps", 0.0))
                     else:
                         handle_tracks(stream.split(":", 1)[1], msg)
+        except (aioredis.ConnectionError, OSError):
+            log.warning("Redis is not running at %s. Waiting to connect...", REDIS_URL)
+            await asyncio.sleep(2)
         except Exception:
             log.exception("ingest error; retrying")
-            await asyncio.sleep(1)
+            await asyncio.sleep(2)
 
 
 async def broadcast_loop():
@@ -165,10 +173,11 @@ async def lifespan(app: FastAPI):
     r = aioredis.from_url(REDIS_URL, decode_responses=True)
     if DATABASE_URL:
         try:
-            import asyncpg
+            import importlib
+            asyncpg = importlib.import_module("asyncpg")
             pool = await asyncpg.create_pool(DATABASE_URL, min_size=1, max_size=4)
         except Exception:
-            log.warning("PostgreSQL unavailable; running without history")
+            log.warning("PostgreSQL unavailable or asyncpg not installed; running without history")
     tasks = [asyncio.create_task(f()) for f in (lambda: ingest_loop(r), broadcast_loop, flush_loop)]
     yield
     for t in tasks:

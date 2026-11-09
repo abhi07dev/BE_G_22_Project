@@ -34,6 +34,6 @@ services:
     build: ./cv
     env_file: .env
     environment: {REDIS_URL: "redis://redis:6379/0"}
-    volumes: ["./calib:/app/calib:ro"]
+    volumes: ["./calib:/app/calib:ro", "../yolo26n.pt:/app/yolo26n.pt:ro"]
     depends_on: [redis]
 volumes: {pgdata: {}}
