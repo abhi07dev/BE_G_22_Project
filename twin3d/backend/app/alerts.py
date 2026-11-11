@@ -6,6 +6,8 @@ from dataclasses import dataclass
 
 
 def point_in_polygon(x: float, y: float, poly: list[list[float]]) -> bool:
+    if not poly or len(poly) < 3:
+        return False
     inside = False
     j = len(poly) - 1
     for i in range(len(poly)):
@@ -33,6 +35,9 @@ class AlertEngine:
         self._last: dict[tuple, float] = {}
 
     def _due(self, key: tuple, now: float) -> bool:
+        if len(self._last) > 1000:
+            cutoff = now - (self.cooldown * 2)
+            self._last = {k: v for k, v in self._last.items() if v >= cutoff}
         if now - self._last.get(key, -1e12) >= self.cooldown:
             self._last[key] = now
             return True

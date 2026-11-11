@@ -3,7 +3,7 @@
   python -m cv_service.calibrate --image frame.jpg --world "2,2;10,2;10,8;2,8" --out calib/cam01.json
 Click the pixels in the SAME ORDER as the world points, then press Enter.  Rejects error > 0.30 m.
 """
-import argparse, json
+import argparse, json, os
 import cv2
 import numpy as np
 
@@ -16,6 +16,8 @@ def main():
     a = ap.parse_args()
     world = np.array([[float(v) for v in p.split(",")] for p in a.world.split(";")], dtype=np.float32)
     img = cv2.imread(a.image)
+    if img is None:
+        raise SystemExit(f"Error: Could not load calibration image from '{a.image}'. File not found or invalid format.")
     pts: list[list[int]] = []
 
     def on_mouse(ev, x, y, *_):
@@ -38,6 +40,9 @@ def main():
     print(f"mean reprojection error: {err*100:.1f} cm")
     if err > 0.30:
         raise SystemExit("error above 30 cm: re-measure the floor points and try again")
+    out_dir = os.path.dirname(a.out)
+    if out_dir:
+        os.makedirs(out_dir, exist_ok=True)
     json.dump({"H": H.tolist(), "pixel_points": px.tolist(), "world_points": world.tolist(),
                "error_m": err, "image_size": [img.shape[1], img.shape[0]]}, open(a.out, "w"), indent=2)
     print("saved", a.out)

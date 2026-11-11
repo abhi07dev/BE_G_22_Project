@@ -22,6 +22,7 @@ except ImportError:
     loads = json.loads
 import redis.asyncio as aioredis
 from fastapi import APIRouter, FastAPI, WebSocket, WebSocketDisconnect
+from fastapi.middleware.cors import CORSMiddleware
 
 from .alerts import AlertEngine, Zone
 
@@ -140,6 +141,7 @@ async def broadcast_loop():
         now = time.time()
         for pid in [p for p, v in world.items() if now - v[2] > STALE_S]:
             del world[pid]
+            last_store.pop(pid, None)
         people = [[pid, round(v[0], 2), round(v[1], 2)] for pid, v in world.items()]
         hub.publish(dumps({"t": "snap", "ts": now, "floor": FLOOR_ID, "people": people}))
         tick += 1
@@ -158,6 +160,7 @@ async def flush_loop():
         if not pos_buffer or pool is None:
             pos_buffer.clear() if pool is None else None
             continue
+        del pos_buffer[:-5000]  # Cap maximum backlog to avoid unbounded memory growth
         batch, pos_buffer[:] = pos_buffer[:], []
         try:
             async with pool.acquire() as conn:
@@ -178,16 +181,28 @@ async def lifespan(app: FastAPI):
             pool = await asyncpg.create_pool(DATABASE_URL, min_size=1, max_size=4)
         except Exception:
             log.warning("PostgreSQL unavailable or asyncpg not installed; running without history")
-    tasks = [asyncio.create_task(f()) for f in (lambda: ingest_loop(r), broadcast_loop, flush_loop)]
+    tasks = [
+        asyncio.create_task(ingest_loop(r)),
+        asyncio.create_task(broadcast_loop()),
+        asyncio.create_task(flush_loop()),
+    ]
     yield
     for t in tasks:
         t.cancel()
+    await asyncio.gather(*tasks, return_exceptions=True)
     await r.aclose()
     if pool:
         await pool.close()
 
 
 app = FastAPI(title="Twin3D API", lifespan=lifespan)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 api = APIRouter(prefix="/api")
 
 
@@ -228,8 +243,12 @@ async def ws_live(ws: WebSocket):
         await ws.send_text(dumps({"t": "cam", "cam": c["id"], "state": c["state"], "fps": c["fps"], "ts": time.time()}))
 
     async def sender():
-        while True:
-            await ws.send_text(await q.get())
+        try:
+            while True:
+                msg = await q.get()
+                await ws.send_text(msg)
+        except Exception:
+            pass
 
     send_task = asyncio.create_task(sender())
     recv_task = asyncio.create_task(ws.receive_text())
